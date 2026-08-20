@@ -299,6 +299,13 @@
     border-top: 1px solid rgba(255,255,255,0.25);
     margin-top: 6px;
   }
+  section.totale .nota-guadagno {
+    font-size: 11px;
+    font-weight: 400;
+    opacity: 0.8;
+    text-align: right;
+    margin-top: 2px;
+  }
 
   button.salva {
     width: 100%;
@@ -352,7 +359,14 @@
   .visita-salvata .info { font-size: 13px; line-height: 1.4; }
   .visita-salvata .info .nome { font-weight: 700; color: var(--navy); }
   .visita-salvata .info .ora { color: var(--testo-corpo); font-size: 11.5px; }
-  .visita-salvata .guadagno-tot { font-weight: 800; color: var(--navy); font-size: 14px; }
+  .visita-salvata .guadagno-tot { font-weight: 800; color: var(--navy); font-size: 14px; text-align: right; }
+  .visita-salvata .nota-guadagno-salvata {
+    font-weight: 400;
+    font-size: 10px;
+    color: var(--testo-corpo);
+    opacity: 0.8;
+    white-space: nowrap;
+  }
   .visita-salvata .azioni {
     display: flex;
     align-items: center;
@@ -433,6 +447,7 @@
   <section class="totale">
     <div class="riga"><span>Incasso prodotti</span><span id="totIncasso">0,00 €</span></div>
     <div class="riga grande"><span>Guadagno</span><span id="totGuadagno">0,00 €</span></div>
+    <div class="nota-guadagno" id="notaGuadagno"></div>
   </section>
 
   <button class="salva" id="btnSalva">Salva visita e passa alla prossima</button>
@@ -450,7 +465,7 @@
   // ---------- Dati prodotti (prezzi del 20/08/2026, da verificare/aggiornare quando cambiano) ----------
   var CATEGORIE_BASE = [
     {
-      nome: "Credelio (cane)",
+      nome: "Credelio",
       varianti: [
         { id: "credelio-blu",     nome: "Blu",     costo: 6.49, prezzo: 15.46 },
         { id: "credelio-verde",   nome: "Verde",   costo: 6.43, prezzo: 13.70 },
@@ -479,9 +494,9 @@
       ]
     },
     {
-      nome: "Confortis (confezione)",
+      nome: "Confis (confezione)",
       varianti: [
-        { id: "confortis", nome: "Confortis", costo: 55.40, prezzo: 100.00 }
+        { id: "confortis", nome: "Confis", costo: 55.40, prezzo: 100.00 }
       ]
     },
     {
@@ -723,13 +738,30 @@
 
     var totaleRichiesto = parseFloat(document.getElementById('totaleRichiesto').value) || 0;
     var differenza = totaleRichiesto - totIncasso;
+    var guadagnoFinale = totGuadagno + (totaleRichiesto > 0 ? differenza : 0);
 
     document.getElementById('totaleProdottiMostrato').textContent = euro(totIncasso);
     document.getElementById('differenzaMostrata').textContent = euro(differenza);
     document.getElementById('totIncasso').textContent = euro(totIncasso);
-    document.getElementById('totGuadagno').textContent = euro(totGuadagno);
+    document.getElementById('totGuadagno').textContent = euro(guadagnoFinale);
 
-    return { totIncasso: totIncasso, totGuadagno: totGuadagno, totaleRichiesto: totaleRichiesto, differenza: differenza };
+    var nota = document.getElementById('notaGuadagno');
+    if (totaleRichiesto > 0 && differenza !== 0) {
+      nota.textContent = 'prodotti ' + euro(totGuadagno) + ' ' + (differenza > 0 ? '+' : '−') +
+        ' altre prestazioni ' + euro(Math.abs(differenza));
+      nota.style.display = 'block';
+    } else {
+      nota.textContent = '';
+      nota.style.display = 'none';
+    }
+
+    return {
+      totIncasso: totIncasso,
+      totGuadagno: totGuadagno,
+      totGuadagnoFinale: guadagnoFinale,
+      totaleRichiesto: totaleRichiesto,
+      differenza: differenza
+    };
   }
 
   contCategorie.addEventListener('input', calcolaTotali);
@@ -762,6 +794,8 @@
       riga.className = 'visita-salvata';
       var nome = v.cliente ? v.cliente : '(cliente senza nome)';
 
+      var guadagnoFinale = (typeof v.totGuadagnoFinale === 'number') ? v.totGuadagnoFinale : v.totGuadagno;
+
       var righeDettaglio = (v.righe || []).map(function (r) {
         return '<div>' + r.nome + ' × ' + r.quantita + ' — ' + euro(r.incasso) + ' (guad. ' + euro(r.guadagno) + ')</div>';
       }).join('');
@@ -772,10 +806,16 @@
         righeDettaglio = '<div>Nessun prodotto registrato</div>';
       }
 
+      var notaGuadagno = '';
+      if (v.totaleRichiesto > 0 && v.differenza) {
+        notaGuadagno = '<div class="nota-guadagno-salvata">prodotti ' + euro(v.totGuadagno) + ' ' +
+          (v.differenza > 0 ? '+' : '−') + ' altre prestazioni ' + euro(Math.abs(v.differenza)) + '</div>';
+      }
+
       riga.innerHTML =
         '<summary><div class="info"><span class="nome">' + nome + '</span><br>' +
         '<span class="ora">' + (v.data || '') + ' ' + v.ora + ' · incasso ' + euro(v.totIncasso) + '</span></div>' +
-        '<div class="guadagno-tot">' + euro(v.totGuadagno) + '</div>' +
+        '<div class="guadagno-tot">' + euro(guadagnoFinale) + notaGuadagno + '</div>' +
         '<div class="azioni">' +
         '<button class="condividi" data-condividi="' + v.id + '">⤴</button>' +
         '<button class="elimina" data-elimina="' + v.id + '">✕</button>' +
@@ -789,6 +829,8 @@
         e.preventDefault();
         e.stopPropagation();
         var id = btn.getAttribute('data-elimina');
+        if (!confirm('Eliminare questa visita?')) return;
+        if (!confirm('Sicura? Non si può annullare.')) return;
         var nuove = caricaVisite().filter(function (v) { return v.id !== id; });
         salvaVisiteArray(nuove);
         disegnaListaVisite();
@@ -813,12 +855,15 @@
       return '- ' + r.nome + ' × ' + r.quantita + ' — ' + euro(r.incasso);
     }).join('\n');
 
+    var guadagnoFinale = (typeof v.totGuadagnoFinale === 'number') ? v.totGuadagnoFinale : v.totGuadagno;
+
     var testo = 'Visita: ' + nome + '\n' + (v.data || '') + ' ' + v.ora + '\n\n';
     testo += righe || 'Nessun prodotto registrato';
     if (v.totaleRichiesto > 0) {
       testo += '\n\nAltre prestazioni: ' + euro(v.differenza) + ' (totale richiesto ' + euro(v.totaleRichiesto) + ')';
     }
     testo += '\n\nTotale incasso: ' + euro(v.totIncasso);
+    testo += '\nGuadagno: ' + euro(guadagnoFinale);
     return testo;
   }
 
@@ -860,6 +905,7 @@
       cliente: document.getElementById('nomeCliente').value.trim(),
       totIncasso: totali.totIncasso,
       totGuadagno: totali.totGuadagno,
+      totGuadagnoFinale: totali.totGuadagnoFinale,
       totaleRichiesto: totali.totaleRichiesto,
       differenza: totali.differenza,
       righe: righe
@@ -883,10 +929,10 @@
   });
 
   document.getElementById('btnCancellaTutto').addEventListener('click', function () {
-    if (confirm('Cancellare tutte le visite salvate?')) {
-      salvaVisiteArray([]);
-      disegnaListaVisite();
-    }
+    if (!confirm('Cancellare tutte le visite salvate?')) return;
+    if (!confirm('Sicura? Non si può annullare, verranno cancellate tutte.')) return;
+    salvaVisiteArray([]);
+    disegnaListaVisite();
   });
 
   // ---------- Avvio ----------
