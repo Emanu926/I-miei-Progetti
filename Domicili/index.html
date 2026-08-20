@@ -46,9 +46,21 @@
     z-index: 100;
     transition: opacity 0.5s ease;
   }
+  #splash {
+    flex-direction: column;
+    gap: 14px;
+  }
   #splash img {
     width: 40vw;
     max-width: 160px;
+    animation: pop 0.6s ease;
+  }
+  #splash .titolo {
+    color: var(--bianco);
+    font-family: 'Montserrat', 'Helvetica Neue', Arial, sans-serif;
+    font-weight: 800;
+    font-size: 22px;
+    letter-spacing: 0.3px;
     animation: pop 0.6s ease;
   }
   #splash.nascosto {
@@ -104,14 +116,34 @@
     overflow: hidden;
     box-shadow: 0 1px 2px rgba(0,0,0,0.06);
   }
-  section.categoria h2 {
+  button.cat-header {
+    width: 100%;
     background: var(--navy);
     color: var(--bianco);
     font-size: 13px;
     font-weight: 700;
     margin: 0;
-    padding: 7px 12px;
+    padding: 9px 12px;
     letter-spacing: 0.2px;
+    border: none;
+    font-family: inherit;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  button.cat-header .freccia {
+    transition: transform 0.2s ease;
+    font-size: 11px;
+  }
+  section.categoria.aperta button.cat-header .freccia {
+    transform: rotate(180deg);
+  }
+  section.categoria .cat-body {
+    display: none;
+  }
+  section.categoria.aperta .cat-body {
+    display: block;
   }
   .riga-prodotto {
     display: grid;
@@ -243,14 +275,19 @@
   .visita-salvata {
     background: var(--bianco);
     border-radius: var(--raggio);
-    padding: 10px 12px;
     margin-bottom: 8px;
     box-shadow: 0 1px 2px rgba(0,0,0,0.06);
+  }
+  .visita-salvata summary {
+    list-style: none;
+    padding: 10px 12px;
     display: flex;
     justify-content: space-between;
     align-items: center;
     gap: 8px;
+    cursor: pointer;
   }
+  .visita-salvata summary::-webkit-details-marker { display: none; }
   .visita-salvata .info { font-size: 13px; line-height: 1.4; }
   .visita-salvata .info .nome { font-weight: 700; color: var(--navy); }
   .visita-salvata .info .ora { color: var(--testo-corpo); font-size: 11.5px; }
@@ -263,6 +300,14 @@
     padding: 2px 6px;
     line-height: 1;
   }
+  .visita-salvata .dettaglio-visita {
+    border-top: 1px solid #EFF2F5;
+    padding: 8px 12px 10px;
+    font-size: 12.5px;
+    color: var(--testo-corpo);
+  }
+  .visita-salvata .dettaglio-visita div { padding: 2px 0; }
+  .visita-salvata .dettaglio-visita .riga-altre { color: var(--azzurro); font-weight: 700; }
 
   .vuoto-giorno {
     color: var(--testo-corpo);
@@ -276,6 +321,7 @@
 
 <div id="splash">
   <img src="assets/apple-touch-icon.png" alt="">
+  <div class="titolo">Stefy Home Visit</div>
 </div>
 
 <div id="app">
@@ -350,11 +396,11 @@
       ]
     },
     {
-      nome: "Cardiotek",
+      nome: "Cardotek",
       varianti: [
-        { id: "cardiotek-marrone", nome: "Marrone", costo: 29.43, prezzo: 56.20 },
-        { id: "cardiotek-verde",   nome: "Verde",   costo: 27.89, prezzo: 53.25 },
-        { id: "cardiotek-blu",     nome: "Blu",     costo: 25.69, prezzo: 49.00 }
+        { id: "cardotek-marrone", nome: "Marrone", costo: 29.43, prezzo: 56.20 },
+        { id: "cardotek-verde",   nome: "Verde",   costo: 27.89, prezzo: 53.25 },
+        { id: "cardotek-blu",     nome: "Blu",     costo: 25.69, prezzo: 49.00 }
       ]
     },
     {
@@ -397,14 +443,23 @@
     }, 2500);
   });
 
-  // ---------- Costruzione UI prodotti ----------
+  // ---------- Costruzione UI prodotti (menu a tendina per categoria) ----------
   var contCategorie = document.getElementById('categorie');
   CATEGORIE.forEach(function (cat) {
     var sec = document.createElement('section');
     sec.className = 'categoria';
-    var h2 = document.createElement('h2');
-    h2.textContent = cat.nome;
-    sec.appendChild(h2);
+
+    var header = document.createElement('button');
+    header.type = 'button';
+    header.className = 'cat-header';
+    header.innerHTML = '<span>' + cat.nome + '</span><span class="freccia">▾</span>';
+    header.addEventListener('click', function () {
+      sec.classList.toggle('aperta');
+    });
+    sec.appendChild(header);
+
+    var body = document.createElement('div');
+    body.className = 'cat-body';
 
     cat.varianti.forEach(function (v) {
       var riga = document.createElement('div');
@@ -413,9 +468,10 @@
         '<div class="nome">' + v.nome + '<small>' + euro(v.prezzo) + ' cliente · costo ' + euro(v.costo) + '</small></div>' +
         '<input type="number" inputmode="numeric" min="0" step="1" placeholder="0" data-id="' + v.id + '">' +
         '<div class="guadagno" data-guadagno="' + v.id + '"><b>0,00 €</b>0,00 € guad.</div>';
-      sec.appendChild(riga);
+      body.appendChild(riga);
     });
 
+    sec.appendChild(body);
     contCategorie.appendChild(sec);
   });
 
@@ -477,19 +533,33 @@
     }
 
     visite.slice().reverse().forEach(function (v) {
-      var riga = document.createElement('div');
+      var riga = document.createElement('details');
       riga.className = 'visita-salvata';
       var nome = v.cliente ? v.cliente : '(cliente senza nome)';
+
+      var righeDettaglio = (v.righe || []).map(function (r) {
+        return '<div>' + r.nome + ' × ' + r.quantita + ' — ' + euro(r.incasso) + ' (guad. ' + euro(r.guadagno) + ')</div>';
+      }).join('');
+      if (v.totaleRichiesto > 0) {
+        righeDettaglio += '<div class="riga-altre">Altre prestazioni: ' + euro(v.differenza) + ' (totale richiesto ' + euro(v.totaleRichiesto) + ')</div>';
+      }
+      if (!righeDettaglio) {
+        righeDettaglio = '<div>Nessun prodotto registrato</div>';
+      }
+
       riga.innerHTML =
-        '<div class="info"><span class="nome">' + nome + '</span><br>' +
+        '<summary><div class="info"><span class="nome">' + nome + '</span><br>' +
         '<span class="ora">' + v.ora + ' · incasso ' + euro(v.totIncasso) + '</span></div>' +
         '<div class="guadagno-tot">' + euro(v.totGuadagno) + '</div>' +
-        '<button class="elimina" data-elimina="' + v.id + '">✕</button>';
+        '<button class="elimina" data-elimina="' + v.id + '">✕</button></summary>' +
+        '<div class="dettaglio-visita">' + righeDettaglio + '</div>';
       cont.appendChild(riga);
     });
 
     cont.querySelectorAll('[data-elimina]').forEach(function (btn) {
-      btn.addEventListener('click', function () {
+      btn.addEventListener('click', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
         var id = btn.getAttribute('data-elimina');
         var nuove = caricaVisite().filter(function (v) { return v.id !== id; });
         salvaVisiteArray(nuove);
@@ -500,6 +570,21 @@
 
   document.getElementById('btnSalva').addEventListener('click', function () {
     var totali = calcolaTotali();
+
+    var righe = [];
+    TUTTE_VARIANTI.forEach(function (v) {
+      var input = document.querySelector('input[data-id="' + v.id + '"]');
+      var q = parseFloat(input.value) || 0;
+      if (q > 0) {
+        righe.push({
+          nome: v.nome,
+          quantita: q,
+          incasso: q * v.prezzo,
+          guadagno: q * (v.prezzo - v.costo)
+        });
+      }
+    });
+
     var visite = caricaVisite();
     visite.push({
       id: Date.now().toString(36),
@@ -508,17 +593,17 @@
       totIncasso: totali.totIncasso,
       totGuadagno: totali.totGuadagno,
       totaleRichiesto: totali.totaleRichiesto,
-      differenza: totali.differenza
+      differenza: totali.differenza,
+      righe: righe
     });
     salvaVisiteArray(visite);
     disegnaListaVisite();
 
-    // reset modulo per la prossima visita
+    // reset modulo per la prossima visita (resta dove si trovava, vicino al salvataggio)
     document.getElementById('nomeCliente').value = '';
     document.getElementById('totaleRichiesto').value = '';
     document.querySelectorAll('#categorie input[type="number"]').forEach(function (i) { i.value = ''; });
     calcolaTotali();
-    window.scrollTo({ top: 0, behavior: 'smooth' });
   });
 
   document.getElementById('btnCancellaTutto').addEventListener('click', function () {
