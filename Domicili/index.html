@@ -163,6 +163,11 @@
     color: var(--testo-corpo);
     font-size: 11px;
   }
+  .riga-prodotto .nome small .editabile {
+    text-decoration: underline dotted;
+    text-underline-offset: 2px;
+    cursor: pointer;
+  }
   .riga-prodotto input[type="number"] {
     width: 100%;
     border: 1px solid #DDE3E8;
@@ -468,6 +473,17 @@
     localStorage.setItem(CHIAVE_PRODOTTI_PERSONALIZZATI, JSON.stringify(arr));
   }
 
+  // ---------- Modifiche a costo/prezzo dei prodotti a listino (localStorage, non toccano i valori di base nel codice) ----------
+  var CHIAVE_OVERRIDE_PREZZI = 'overridePrezzi';
+  function caricaOverridePrezzi() {
+    try {
+      return JSON.parse(localStorage.getItem(CHIAVE_OVERRIDE_PREZZI) || '{}');
+    } catch (e) { return {}; }
+  }
+  function salvaOverridePrezzi(obj) {
+    localStorage.setItem(CHIAVE_OVERRIDE_PREZZI, JSON.stringify(obj));
+  }
+
   // ---------- Utility ----------
   function euro(n) {
     return n.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
@@ -502,9 +518,9 @@
       varianti: caricaProdottiPersonalizzati()
     }]);
 
-    categorie.forEach(function (cat) {
-      cat.varianti.forEach(function (v) { TUTTE_VARIANTI.push(v); });
+    var overridePrezzi = caricaOverridePrezzi();
 
+    categorie.forEach(function (cat) {
       var sec = document.createElement('section');
       sec.className = 'categoria';
       if (cat.nome === nomeCategoriaDaTenereAperta) sec.classList.add('aperta');
@@ -522,14 +538,26 @@
       body.className = 'cat-body';
 
       cat.varianti.forEach(function (v) {
+        var eff = cat.personalizzata ? v : Object.assign({}, v, overridePrezzi[v.id] || {});
+        TUTTE_VARIANTI.push(eff);
+
         var riga = document.createElement('div');
         riga.className = 'riga-prodotto';
         riga.innerHTML =
-          '<div class="nome">' + v.nome + '<small>' + euro(v.prezzo) + ' cliente · costo ' + euro(v.costo) + '</small></div>' +
+          '<div class="nome">' + v.nome + '<small>' +
+          '<span class="editabile" data-campo="prezzo">' + euro(eff.prezzo) + ' cliente</span> · ' +
+          '<span class="editabile" data-campo="costo">costo ' + euro(eff.costo) + '</span>' +
+          '</small></div>' +
           '<input type="number" inputmode="numeric" min="0" step="1" placeholder="0" data-id="' + v.id + '">' +
           '<div class="guadagno" data-guadagno="' + v.id + '"><b>0,00 €</b>0,00 € guad.</div>' +
           (cat.personalizzata ? '<button type="button" class="elimina-prodotto" data-elimina-prodotto="' + v.id + '">✕</button>' : '');
         body.appendChild(riga);
+
+        riga.querySelectorAll('.editabile').forEach(function (span) {
+          span.addEventListener('click', function () {
+            modificaValore(eff, cat.personalizzata, cat.nome, span.getAttribute('data-campo'));
+          });
+        });
       });
 
       if (cat.personalizzata) {
@@ -576,6 +604,41 @@
         calcolaTotali();
       });
     });
+  }
+
+  // ---------- Modifica costo/prezzo di un prodotto (con conferma) ----------
+  function modificaValore(v, personalizzata, nomeCategoria, campo) {
+    var valoreAttuale = campo === 'prezzo' ? v.prezzo : v.costo;
+    var etichetta = campo === 'prezzo' ? 'prezzo cliente' : 'costo';
+
+    var input = prompt('Nuovo ' + etichetta + ' per "' + v.nome + '"\n(attuale ' + euro(valoreAttuale) + '):', String(valoreAttuale).replace('.', ','));
+    if (input === null) return;
+
+    var nuovoValore = parseFloat(input.replace(',', '.').trim());
+    if (isNaN(nuovoValore) || nuovoValore < 0) {
+      alert('Valore non valido, non è stato cambiato nulla.');
+      return;
+    }
+
+    var confermato = confirm('Confermi?\n\n' + etichetta + ' di "' + v.nome + '"\n' + euro(valoreAttuale) + ' → ' + euro(nuovoValore));
+    if (!confermato) return;
+
+    if (personalizzata) {
+      var elenco = caricaProdottiPersonalizzati();
+      var idx = elenco.findIndex(function (p) { return p.id === v.id; });
+      if (idx >= 0) {
+        elenco[idx][campo] = nuovoValore;
+        salvaProdottiPersonalizzati(elenco);
+      }
+    } else {
+      var overrides = caricaOverridePrezzi();
+      if (!overrides[v.id]) overrides[v.id] = {};
+      overrides[v.id][campo] = nuovoValore;
+      salvaOverridePrezzi(overrides);
+    }
+
+    costruisciUI(nomeCategoria);
+    calcolaTotali();
   }
 
   // ---------- Calcolo ----------
