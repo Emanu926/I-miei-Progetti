@@ -109,6 +109,23 @@
     background: var(--bianco);
   }
 
+  .riga-cliente {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+  .riga-cliente input { flex: 1; }
+  .riga-cliente button#btnPulisci {
+    flex: none;
+    background: none;
+    border: 1px solid #DDD;
+    color: var(--testo-corpo);
+    font-size: 12px;
+    font-family: inherit;
+    border-radius: var(--raggio-pillola);
+    padding: 0 12px;
+  }
+
   section.categoria {
     background: var(--bianco);
     border-radius: var(--raggio);
@@ -192,10 +209,11 @@
   .riga-prodotto button.elimina-prodotto {
     background: none;
     border: none;
-    color: #B33;
-    font-size: 16px;
-    padding: 0 0 0 4px;
+    color: #AAA;
+    font-size: 11px;
+    padding: 2px 0 2px 6px;
     line-height: 1;
+    opacity: 0.7;
   }
   .riga-nuovo-prodotto {
     padding: 10px 12px;
@@ -335,6 +353,19 @@
   .visita-salvata .info .nome { font-weight: 700; color: var(--navy); }
   .visita-salvata .info .ora { color: var(--testo-corpo); font-size: 11.5px; }
   .visita-salvata .guadagno-tot { font-weight: 800; color: var(--navy); font-size: 14px; }
+  .visita-salvata .azioni {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+  }
+  .visita-salvata button.condividi {
+    background: none;
+    border: none;
+    color: var(--navy);
+    font-size: 16px;
+    padding: 2px 6px;
+    line-height: 1;
+  }
   .visita-salvata button.elimina {
     background: none;
     border: none;
@@ -376,8 +407,9 @@
     </div>
   </header>
 
-  <div style="margin-bottom:10px;">
+  <div class="riga-cliente">
     <input type="text" id="nomeCliente" placeholder="Cliente (facoltativo)">
+    <button type="button" id="btnPulisci" title="Svuota cliente, quantità e totale richiesto">Pulisci</button>
   </div>
 
   <div id="categorie"></div>
@@ -506,7 +538,23 @@
 
   // ---------- Costruzione UI prodotti (menu a tendina per categoria) ----------
   var contCategorie = document.getElementById('categorie');
-  var NOME_CATEGORIA_PERSONALIZZATA = 'Altri prodotti (tuoi)';
+
+  // Cattura/ripristina le quantità già scritte, cosi' ricostruire l'elenco
+  // (dopo aver aggiunto/eliminato/modificato un prodotto) non le cancella.
+  function catturaQuantita() {
+    var mappa = {};
+    document.querySelectorAll('#categorie input[type="number"]').forEach(function (inp) {
+      if (inp.value !== '') mappa[inp.getAttribute('data-id')] = inp.value;
+    });
+    return mappa;
+  }
+  function ripristinaQuantita(mappa) {
+    Object.keys(mappa).forEach(function (id) {
+      var inp = document.querySelector('#categorie input[data-id="' + id + '"]');
+      if (inp) inp.value = mappa[id];
+    });
+  }
+  var NOME_CATEGORIA_PERSONALIZZATA = 'Altri prodotti';
 
   function costruisciUI(nomeCategoriaDaTenereAperta) {
     contCategorie.innerHTML = '';
@@ -590,7 +638,10 @@
         elenco.push({ id: 'custom-' + Date.now().toString(36), nome: nome, costo: costo, prezzo: prezzo });
         salvaProdottiPersonalizzati(elenco);
 
+        var quantitaSalvate = catturaQuantita();
+        document.getElementById('nuovoNome').value = '';
         costruisciUI(NOME_CATEGORIA_PERSONALIZZATA);
+        ripristinaQuantita(quantitaSalvate);
         calcolaTotali();
       });
     }
@@ -598,9 +649,15 @@
     contCategorie.querySelectorAll('[data-elimina-prodotto]').forEach(function (btn) {
       btn.addEventListener('click', function () {
         var id = btn.getAttribute('data-elimina-prodotto');
+        var nomeProdotto = btn.closest('.riga-prodotto').querySelector('.nome').firstChild.textContent.trim();
+        if (!confirm('Eliminare "' + nomeProdotto + '" dai tuoi prodotti?')) return;
+
         var nuovoElenco = caricaProdottiPersonalizzati().filter(function (p) { return p.id !== id; });
         salvaProdottiPersonalizzati(nuovoElenco);
+
+        var quantitaSalvate = catturaQuantita();
         costruisciUI(NOME_CATEGORIA_PERSONALIZZATA);
+        ripristinaQuantita(quantitaSalvate);
         calcolaTotali();
       });
     });
@@ -637,7 +694,9 @@
       salvaOverridePrezzi(overrides);
     }
 
+    var quantitaSalvate = catturaQuantita();
     costruisciUI(nomeCategoria);
+    ripristinaQuantita(quantitaSalvate);
     calcolaTotali();
   }
 
@@ -717,7 +776,10 @@
         '<summary><div class="info"><span class="nome">' + nome + '</span><br>' +
         '<span class="ora">' + (v.data || '') + ' ' + v.ora + ' · incasso ' + euro(v.totIncasso) + '</span></div>' +
         '<div class="guadagno-tot">' + euro(v.totGuadagno) + '</div>' +
-        '<button class="elimina" data-elimina="' + v.id + '">✕</button></summary>' +
+        '<div class="azioni">' +
+        '<button class="condividi" data-condividi="' + v.id + '">⤴</button>' +
+        '<button class="elimina" data-elimina="' + v.id + '">✕</button>' +
+        '</div></summary>' +
         '<div class="dettaglio-visita">' + righeDettaglio + '</div>';
       cont.appendChild(riga);
     });
@@ -732,6 +794,45 @@
         disegnaListaVisite();
       });
     });
+
+    cont.querySelectorAll('[data-condividi]').forEach(function (btn) {
+      btn.addEventListener('click', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        var id = btn.getAttribute('data-condividi');
+        var v = caricaVisite().find(function (x) { return x.id === id; });
+        if (!v) return;
+        condividiVisita(v);
+      });
+    });
+  }
+
+  function testoVisita(v) {
+    var nome = v.cliente ? v.cliente : '(cliente senza nome)';
+    var righe = (v.righe || []).map(function (r) {
+      return '- ' + r.nome + ' × ' + r.quantita + ' — ' + euro(r.incasso);
+    }).join('\n');
+
+    var testo = 'Visita: ' + nome + '\n' + (v.data || '') + ' ' + v.ora + '\n\n';
+    testo += righe || 'Nessun prodotto registrato';
+    if (v.totaleRichiesto > 0) {
+      testo += '\n\nAltre prestazioni: ' + euro(v.differenza) + ' (totale richiesto ' + euro(v.totaleRichiesto) + ')';
+    }
+    testo += '\n\nTotale incasso: ' + euro(v.totIncasso);
+    return testo;
+  }
+
+  function condividiVisita(v) {
+    var testo = testoVisita(v);
+    if (navigator.share) {
+      navigator.share({ title: 'Visita', text: testo }).catch(function () {});
+    } else if (navigator.clipboard) {
+      navigator.clipboard.writeText(testo).then(function () {
+        alert('Condivisione diretta non disponibile: testo copiato negli appunti, incollalo dove vuoi.');
+      });
+    } else {
+      alert(testo);
+    }
   }
 
   document.getElementById('btnSalva').addEventListener('click', function () {
@@ -767,6 +868,14 @@
     disegnaListaVisite();
 
     // reset modulo per la prossima visita (resta dove si trovava, vicino al salvataggio)
+    document.getElementById('nomeCliente').value = '';
+    document.getElementById('totaleRichiesto').value = '';
+    document.querySelectorAll('#categorie input[type="number"]').forEach(function (i) { i.value = ''; });
+    calcolaTotali();
+  });
+
+  document.getElementById('btnPulisci').addEventListener('click', function () {
+    if (!confirm('Svuotare cliente, quantità e totale richiesto del modulo attuale?')) return;
     document.getElementById('nomeCliente').value = '';
     document.getElementById('totaleRichiesto').value = '';
     document.querySelectorAll('#categorie input[type="number"]').forEach(function (i) { i.value = ''; });
