@@ -184,6 +184,44 @@
     color: var(--navy);
     font-size: 13.5px;
   }
+  .riga-prodotto button.elimina-prodotto {
+    background: none;
+    border: none;
+    color: #B33;
+    font-size: 16px;
+    padding: 0 0 0 4px;
+    line-height: 1;
+  }
+  .riga-nuovo-prodotto {
+    padding: 10px 12px;
+    border-top: 1px solid #EFF2F5;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+  .riga-nuovo-prodotto input {
+    border: 1px solid #DDE3E8;
+    border-radius: 8px;
+    padding: 8px 9px;
+    font-size: 14px;
+    font-family: inherit;
+    width: 100%;
+  }
+  .riga-nuovo-prodotto .campi-numerici {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+  }
+  .riga-nuovo-prodotto button {
+    background: var(--azzurro);
+    color: var(--navy-scuro);
+    border: none;
+    border-radius: var(--raggio-pillola);
+    font-weight: 700;
+    font-family: inherit;
+    font-size: 13.5px;
+    padding: 9px;
+  }
 
   section.altre {
     background: var(--bianco);
@@ -363,8 +401,8 @@
   <button class="salva" id="btnSalva">Salva visita e passa alla prossima</button>
 
   <h2 class="sezione-giorno">
-    <span id="titoloGiorno">Visite di oggi</span>
-    <button class="cancella-tutto" id="btnCancellaTutto">Cancella tutta la giornata</button>
+    <span id="titoloGiorno">Visite salvate</span>
+    <button class="cancella-tutto" id="btnCancellaTutto">Cancella tutto</button>
   </h2>
   <div id="listaVisite"></div>
 </div>
@@ -373,7 +411,7 @@
 (function () {
 
   // ---------- Dati prodotti (prezzi del 20/08/2026, da verificare/aggiornare quando cambiano) ----------
-  var CATEGORIE = [
+  var CATEGORIE_BASE = [
     {
       nome: "Credelio (cane)",
       varianti: [
@@ -418,17 +456,24 @@
   ];
 
   var TUTTE_VARIANTI = [];
-  CATEGORIE.forEach(function (cat) {
-    cat.varianti.forEach(function (v) { TUTTE_VARIANTI.push(v); });
-  });
+
+  // ---------- Prodotti personalizzati (aggiunti da Stefania, salvati sul telefono) ----------
+  var CHIAVE_PRODOTTI_PERSONALIZZATI = 'prodottiPersonalizzati';
+  function caricaProdottiPersonalizzati() {
+    try {
+      return JSON.parse(localStorage.getItem(CHIAVE_PRODOTTI_PERSONALIZZATI) || '[]');
+    } catch (e) { return []; }
+  }
+  function salvaProdottiPersonalizzati(arr) {
+    localStorage.setItem(CHIAVE_PRODOTTI_PERSONALIZZATI, JSON.stringify(arr));
+  }
 
   // ---------- Utility ----------
   function euro(n) {
     return n.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
   }
-  function oggiChiave() {
-    var d = new Date();
-    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  function dataBreve() {
+    return new Date().toLocaleDateString('it-IT');
   }
   function dataLeggibile() {
     var d = new Date();
@@ -445,35 +490,93 @@
 
   // ---------- Costruzione UI prodotti (menu a tendina per categoria) ----------
   var contCategorie = document.getElementById('categorie');
-  CATEGORIE.forEach(function (cat) {
-    var sec = document.createElement('section');
-    sec.className = 'categoria';
+  var NOME_CATEGORIA_PERSONALIZZATA = 'Altri prodotti (tuoi)';
 
-    var header = document.createElement('button');
-    header.type = 'button';
-    header.className = 'cat-header';
-    header.innerHTML = '<span>' + cat.nome + '</span><span class="freccia">▾</span>';
-    header.addEventListener('click', function () {
-      sec.classList.toggle('aperta');
+  function costruisciUI(nomeCategoriaDaTenereAperta) {
+    contCategorie.innerHTML = '';
+    TUTTE_VARIANTI = [];
+
+    var categorie = CATEGORIE_BASE.concat([{
+      nome: NOME_CATEGORIA_PERSONALIZZATA,
+      personalizzata: true,
+      varianti: caricaProdottiPersonalizzati()
+    }]);
+
+    categorie.forEach(function (cat) {
+      cat.varianti.forEach(function (v) { TUTTE_VARIANTI.push(v); });
+
+      var sec = document.createElement('section');
+      sec.className = 'categoria';
+      if (cat.nome === nomeCategoriaDaTenereAperta) sec.classList.add('aperta');
+
+      var header = document.createElement('button');
+      header.type = 'button';
+      header.className = 'cat-header';
+      header.innerHTML = '<span>' + cat.nome + '</span><span class="freccia">▾</span>';
+      header.addEventListener('click', function () {
+        sec.classList.toggle('aperta');
+      });
+      sec.appendChild(header);
+
+      var body = document.createElement('div');
+      body.className = 'cat-body';
+
+      cat.varianti.forEach(function (v) {
+        var riga = document.createElement('div');
+        riga.className = 'riga-prodotto';
+        riga.innerHTML =
+          '<div class="nome">' + v.nome + '<small>' + euro(v.prezzo) + ' cliente · costo ' + euro(v.costo) + '</small></div>' +
+          '<input type="number" inputmode="numeric" min="0" step="1" placeholder="0" data-id="' + v.id + '">' +
+          '<div class="guadagno" data-guadagno="' + v.id + '"><b>0,00 €</b>0,00 € guad.</div>' +
+          (cat.personalizzata ? '<button type="button" class="elimina-prodotto" data-elimina-prodotto="' + v.id + '">✕</button>' : '');
+        body.appendChild(riga);
+      });
+
+      if (cat.personalizzata) {
+        var formNuovo = document.createElement('div');
+        formNuovo.className = 'riga-nuovo-prodotto';
+        formNuovo.innerHTML =
+          '<input type="text" id="nuovoNome" placeholder="Nome prodotto">' +
+          '<div class="campi-numerici">' +
+          '<input type="number" id="nuovoCosto" placeholder="Costo" step="0.01" min="0">' +
+          '<input type="number" id="nuovoPrezzo" placeholder="Prezzo cliente" step="0.01" min="0">' +
+          '</div>' +
+          '<button type="button" id="btnAggiungiProdotto">+ Aggiungi prodotto</button>';
+        body.appendChild(formNuovo);
+      }
+
+      sec.appendChild(body);
+      contCategorie.appendChild(sec);
     });
-    sec.appendChild(header);
 
-    var body = document.createElement('div');
-    body.className = 'cat-body';
+    if (document.getElementById('btnAggiungiProdotto')) {
+      document.getElementById('btnAggiungiProdotto').addEventListener('click', function () {
+        var nome = document.getElementById('nuovoNome').value.trim();
+        var costo = parseFloat(document.getElementById('nuovoCosto').value);
+        var prezzo = parseFloat(document.getElementById('nuovoPrezzo').value);
+        if (!nome) { alert('Inserisci il nome del prodotto.'); return; }
+        if (isNaN(costo) || costo < 0) { alert('Inserisci un costo valido.'); return; }
+        if (isNaN(prezzo) || prezzo < 0) { alert('Inserisci un prezzo cliente valido.'); return; }
 
-    cat.varianti.forEach(function (v) {
-      var riga = document.createElement('div');
-      riga.className = 'riga-prodotto';
-      riga.innerHTML =
-        '<div class="nome">' + v.nome + '<small>' + euro(v.prezzo) + ' cliente · costo ' + euro(v.costo) + '</small></div>' +
-        '<input type="number" inputmode="numeric" min="0" step="1" placeholder="0" data-id="' + v.id + '">' +
-        '<div class="guadagno" data-guadagno="' + v.id + '"><b>0,00 €</b>0,00 € guad.</div>';
-      body.appendChild(riga);
+        var elenco = caricaProdottiPersonalizzati();
+        elenco.push({ id: 'custom-' + Date.now().toString(36), nome: nome, costo: costo, prezzo: prezzo });
+        salvaProdottiPersonalizzati(elenco);
+
+        costruisciUI(NOME_CATEGORIA_PERSONALIZZATA);
+        calcolaTotali();
+      });
+    }
+
+    contCategorie.querySelectorAll('[data-elimina-prodotto]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var id = btn.getAttribute('data-elimina-prodotto');
+        var nuovoElenco = caricaProdottiPersonalizzati().filter(function (p) { return p.id !== id; });
+        salvaProdottiPersonalizzati(nuovoElenco);
+        costruisciUI(NOME_CATEGORIA_PERSONALIZZATA);
+        calcolaTotali();
+      });
     });
-
-    sec.appendChild(body);
-    contCategorie.appendChild(sec);
-  });
+  }
 
   // ---------- Calcolo ----------
   function calcolaTotali() {
@@ -510,16 +613,16 @@
   contCategorie.addEventListener('input', calcolaTotali);
   document.getElementById('totaleRichiesto').addEventListener('input', calcolaTotali);
 
-  // ---------- Salvataggio giornata (localStorage) ----------
-  function chiaveGiorno() { return 'visite_' + oggiChiave(); }
+  // ---------- Salvataggio visite (localStorage, elenco unico non legato al giorno) ----------
+  var CHIAVE_VISITE = 'visiteSalvate';
 
   function caricaVisite() {
     try {
-      return JSON.parse(localStorage.getItem(chiaveGiorno()) || '[]');
+      return JSON.parse(localStorage.getItem(CHIAVE_VISITE) || '[]');
     } catch (e) { return []; }
   }
   function salvaVisiteArray(arr) {
-    localStorage.setItem(chiaveGiorno(), JSON.stringify(arr));
+    localStorage.setItem(CHIAVE_VISITE, JSON.stringify(arr));
   }
 
   function disegnaListaVisite() {
@@ -528,7 +631,7 @@
     cont.innerHTML = '';
 
     if (visite.length === 0) {
-      cont.innerHTML = '<div class="vuoto-giorno">Nessuna visita salvata oggi</div>';
+      cont.innerHTML = '<div class="vuoto-giorno">Nessuna visita salvata</div>';
       return;
     }
 
@@ -549,7 +652,7 @@
 
       riga.innerHTML =
         '<summary><div class="info"><span class="nome">' + nome + '</span><br>' +
-        '<span class="ora">' + v.ora + ' · incasso ' + euro(v.totIncasso) + '</span></div>' +
+        '<span class="ora">' + (v.data || '') + ' ' + v.ora + ' · incasso ' + euro(v.totIncasso) + '</span></div>' +
         '<div class="guadagno-tot">' + euro(v.totGuadagno) + '</div>' +
         '<button class="elimina" data-elimina="' + v.id + '">✕</button></summary>' +
         '<div class="dettaglio-visita">' + righeDettaglio + '</div>';
@@ -588,6 +691,7 @@
     var visite = caricaVisite();
     visite.push({
       id: Date.now().toString(36),
+      data: dataBreve(),
       ora: new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }),
       cliente: document.getElementById('nomeCliente').value.trim(),
       totIncasso: totali.totIncasso,
@@ -607,7 +711,7 @@
   });
 
   document.getElementById('btnCancellaTutto').addEventListener('click', function () {
-    if (confirm('Cancellare tutte le visite salvate oggi?')) {
+    if (confirm('Cancellare tutte le visite salvate?')) {
       salvaVisiteArray([]);
       disegnaListaVisite();
     }
@@ -615,6 +719,7 @@
 
   // ---------- Avvio ----------
   document.getElementById('dataOggi').textContent = dataLeggibile();
+  costruisciUI();
   calcolaTotali();
   disegnaListaVisite();
 
