@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Calcolo visite</title>
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<link rel="icon" href="assets/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Visite">
+<meta name="theme-color" content="#004A7C">
+<style>
+  :root {
+    --azzurro:        #56CCF2;
+    --navy:           #004A7C;
+    --navy-scuro:     #003D66;
+    --bianco:         #FFFFFF;
+    --testo-corpo:    #5A5A5A;
+    --testo-scuro:    #333333;
+    --sfondo-chiaro:  #F9F9F9;
+    --sfondo-azzurrino:#F7FAFF;
+    --raggio:         10px;
+    --raggio-pillola: 999px;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--sfondo-chiaro);
+    font-family: 'Montserrat', 'Helvetica Neue', Arial, sans-serif;
+    color: var(--testo-scuro);
+    -webkit-text-size-adjust: 100%;
+  }
+
+  /* ---------- Splash ---------- */
+  #splash {
+    position: fixed;
+    inset: 0;
+    background: var(--navy);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    transition: opacity 0.5s ease;
+  }
+  #splash img {
+    width: 40vw;
+    max-width: 160px;
+    animation: pop 0.6s ease;
+  }
+  #splash.nascosto {
+    opacity: 0;
+    pointer-events: none;
+  }
+  @keyframes pop {
+    from { transform: scale(0.85); opacity: 0; }
+    to   { transform: scale(1); opacity: 1; }
+  }
+
+  /* ---------- App ---------- */
+  #app {
+    max-width: 640px;
+    margin: 0 auto;
+    padding: 12px 12px 40px;
+  }
+
+  header.top {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 4px 14px;
+  }
+  header.top img { width: 32px; height: 32px; flex: none; }
+  header.top .titoli { flex: 1; min-width: 0; }
+  header.top h1 {
+    font-size: 16px;
+    margin: 0;
+    color: var(--navy);
+    font-weight: 800;
+  }
+  header.top .data {
+    font-size: 12px;
+    color: var(--testo-corpo);
+    text-transform: capitalize;
+  }
+
+  input[type="text"] {
+    width: 100%;
+    border: 1px solid #DDE3E8;
+    border-radius: var(--raggio);
+    padding: 9px 10px;
+    font-size: 14px;
+    font-family: inherit;
+    background: var(--bianco);
+  }
+
+  section.categoria {
+    background: var(--bianco);
+    border-radius: var(--raggio);
+    margin-bottom: 10px;
+    overflow: hidden;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.06);
+  }
+  section.categoria h2 {
+    background: var(--navy);
+    color: var(--bianco);
+    font-size: 13px;
+    font-weight: 700;
+    margin: 0;
+    padding: 7px 12px;
+    letter-spacing: 0.2px;
+  }
+  .riga-prodotto {
+    display: grid;
+    grid-template-columns: 1fr 66px 74px;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 12px;
+    border-top: 1px solid #EFF2F5;
+  }
+  .riga-prodotto:first-of-type { border-top: none; }
+  .riga-prodotto .nome {
+    font-size: 13.5px;
+    line-height: 1.25;
+  }
+  .riga-prodotto .nome small {
+    display: block;
+    color: var(--testo-corpo);
+    font-size: 11px;
+  }
+  .riga-prodotto input[type="number"] {
+    width: 100%;
+    border: 1px solid #DDE3E8;
+    border-radius: 8px;
+    padding: 7px 6px;
+    font-size: 15px;
+    text-align: center;
+    font-family: inherit;
+    -moz-appearance: textfield;
+  }
+  .riga-prodotto .guadagno {
+    font-size: 12.5px;
+    text-align: right;
+    color: var(--testo-corpo);
+    white-space: nowrap;
+  }
+  .riga-prodotto .guadagno b {
+    display: block;
+    color: var(--navy);
+    font-size: 13.5px;
+  }
+
+  section.altre {
+    background: var(--bianco);
+    border-radius: var(--raggio);
+    padding: 12px;
+    margin-bottom: 10px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.06);
+  }
+  section.altre h2 {
+    font-size: 13px;
+    font-weight: 700;
+    margin: 0 0 8px;
+    color: var(--navy);
+  }
+  .campo-riga {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 5px 0;
+    font-size: 13.5px;
+  }
+  .campo-riga input[type="number"] {
+    width: 100px;
+    border: 1px solid #DDE3E8;
+    border-radius: 8px;
+    padding: 7px 6px;
+    font-size: 15px;
+    text-align: center;
+    font-family: inherit;
+  }
+  .campo-riga.risultato b { color: var(--navy); font-size: 15px; }
+  .campo-riga.risultato.diff b { color: var(--azzurro); }
+
+  section.totale {
+    background: var(--navy);
+    color: var(--bianco);
+    border-radius: var(--raggio);
+    padding: 14px 16px;
+    margin-bottom: 14px;
+  }
+  section.totale .riga {
+    display: flex;
+    justify-content: space-between;
+    font-size: 14px;
+    padding: 3px 0;
+  }
+  section.totale .riga.grande {
+    font-size: 20px;
+    font-weight: 800;
+    padding-top: 6px;
+    border-top: 1px solid rgba(255,255,255,0.25);
+    margin-top: 6px;
+  }
+
+  button.salva {
+    width: 100%;
+    background: var(--azzurro);
+    color: var(--navy-scuro);
+    border: none;
+    border-radius: var(--raggio-pillola);
+    font-size: 16px;
+    font-weight: 800;
+    font-family: inherit;
+    padding: 13px;
+    margin-bottom: 22px;
+  }
+  button.salva:active { opacity: 0.85; }
+
+  h2.sezione-giorno {
+    font-size: 13px;
+    color: var(--testo-corpo);
+    font-weight: 700;
+    margin: 0 0 8px 2px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  button.cancella-tutto {
+    background: none;
+    border: 1px solid #DDD;
+    color: #B33;
+    font-size: 11px;
+    border-radius: var(--raggio-pillola);
+    padding: 4px 10px;
+    font-family: inherit;
+  }
+
+  .visita-salvata {
+    background: var(--bianco);
+    border-radius: var(--raggio);
+    padding: 10px 12px;
+    margin-bottom: 8px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.06);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+  }
+  .visita-salvata .info { font-size: 13px; line-height: 1.4; }
+  .visita-salvata .info .nome { font-weight: 700; color: var(--navy); }
+  .visita-salvata .info .ora { color: var(--testo-corpo); font-size: 11.5px; }
+  .visita-salvata .guadagno-tot { font-weight: 800; color: var(--navy); font-size: 14px; }
+  .visita-salvata button.elimina {
+    background: none;
+    border: none;
+    color: #B33;
+    font-size: 18px;
+    padding: 2px 6px;
+    line-height: 1;
+  }
+
+  .vuoto-giorno {
+    color: var(--testo-corpo);
+    font-size: 13px;
+    text-align: center;
+    padding: 10px;
+  }
+</style>
+</head>
+<body>
+
+<div id="splash">
+  <img src="assets/apple-touch-icon.png" alt="">
+</div>
+
+<div id="app">
+  <header class="top">
+    <img src="assets/apple-touch-icon.png" alt="">
+    <div class="titoli">
+      <h1>Calcolo visite a domicilio</h1>
+      <div class="data" id="dataOggi"></div>
+    </div>
+  </header>
+
+  <div style="margin-bottom:10px;">
+    <input type="text" id="nomeCliente" placeholder="Cliente (facoltativo)">
+  </div>
+
+  <div id="categorie"></div>
+
+  <section class="altre">
+    <h2>Altre prestazioni / totale concordato</h2>
+    <div class="campo-riga">
+      <span>Totale richiesto al cliente</span>
+      <input type="number" id="totaleRichiesto" inputmode="decimal" placeholder="0" min="0" step="0.01">
+    </div>
+    <div class="campo-riga risultato">
+      <span>Totale prodotti (calcolato)</span>
+      <b id="totaleProdottiMostrato">0,00 €</b>
+    </div>
+    <div class="campo-riga risultato diff">
+      <span>Differenza (altre prestazioni)</span>
+      <b id="differenzaMostrata">0,00 €</b>
+    </div>
+  </section>
+
+  <section class="totale">
+    <div class="riga"><span>Incasso prodotti</span><span id="totIncasso">0,00 €</span></div>
+    <div class="riga grande"><span>Guadagno</span><span id="totGuadagno">0,00 €</span></div>
+  </section>
+
+  <button class="salva" id="btnSalva">Salva visita e passa alla prossima</button>
+
+  <h2 class="sezione-giorno">
+    <span id="titoloGiorno">Visite di oggi</span>
+    <button class="cancella-tutto" id="btnCancellaTutto">Cancella tutta la giornata</button>
+  </h2>
+  <div id="listaVisite"></div>
+</div>
+
+<script>
+(function () {
+
+  // ---------- Dati prodotti (prezzi del 20/08/2026, da verificare/aggiornare quando cambiano) ----------
+  var CATEGORIE = [
+    {
+      nome: "Credelio (cane)",
+      varianti: [
+        { id: "credelio-blu",     nome: "Blu",     costo: 6.49, prezzo: 15.46 },
+        { id: "credelio-verde",   nome: "Verde",   costo: 6.43, prezzo: 13.70 },
+        { id: "credelio-arancio", nome: "Arancio", costo: 5.51, prezzo: 12.27 },
+        { id: "credelio-rosa",    nome: "Rosa",    costo: 0,    prezzo: 11.37 },
+        { id: "credelio-giallo",  nome: "Giallo",  costo: 6.10, prezzo: 10.53 },
+        { id: "credelio-gatto",   nome: "Gatto",   costo: 5.21, prezzo: 11.23 }
+      ]
+    },
+    {
+      nome: "Credelio Plus (cane)",
+      varianti: [
+        { id: "plus-blu",     nome: "Blu",     costo: 7.27, prezzo: 14.02 },
+        { id: "plus-verde",   nome: "Verde",   costo: 6.28, prezzo: 13.08 },
+        { id: "plus-arancio", nome: "Arancio", costo: 5.78, prezzo: 12.05 },
+        { id: "plus-rosa",    nome: "Rosa",    costo: 5.42, prezzo: 11.30 },
+        { id: "plus-giallo",  nome: "Giallo",  costo: 5.55, prezzo: 10.87 }
+      ]
+    },
+    {
+      nome: "Cardiotek",
+      varianti: [
+        { id: "cardiotek-marrone", nome: "Marrone", costo: 29.43, prezzo: 56.20 },
+        { id: "cardiotek-verde",   nome: "Verde",   costo: 27.89, prezzo: 53.25 },
+        { id: "cardiotek-blu",     nome: "Blu",     costo: 25.69, prezzo: 49.00 }
+      ]
+    },
+    {
+      nome: "Confortis (confezione)",
+      varianti: [
+        { id: "confortis", nome: "Confortis", costo: 55.40, prezzo: 100.00 }
+      ]
+    },
+    {
+      nome: "NexGard (pipetta)",
+      varianti: [
+        { id: "nexgard", nome: "NexGard pipetta", costo: 5.48, prezzo: 14.00 }
+      ]
+    }
+  ];
+
+  var TUTTE_VARIANTI = [];
+  CATEGORIE.forEach(function (cat) {
+    cat.varianti.forEach(function (v) { TUTTE_VARIANTI.push(v); });
+  });
+
+  // ---------- Utility ----------
+  function euro(n) {
+    return n.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+  }
+  function oggiChiave() {
+    var d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+  function dataLeggibile() {
+    var d = new Date();
+    var testo = d.toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+    return testo.charAt(0).toUpperCase() + testo.slice(1);
+  }
+
+  // ---------- Splash ----------
+  window.addEventListener('load', function () {
+    setTimeout(function () {
+      document.getElementById('splash').classList.add('nascosto');
+    }, 2500);
+  });
+
+  // ---------- Costruzione UI prodotti ----------
+  var contCategorie = document.getElementById('categorie');
+  CATEGORIE.forEach(function (cat) {
+    var sec = document.createElement('section');
+    sec.className = 'categoria';
+    var h2 = document.createElement('h2');
+    h2.textContent = cat.nome;
+    sec.appendChild(h2);
+
+    cat.varianti.forEach(function (v) {
+      var riga = document.createElement('div');
+      riga.className = 'riga-prodotto';
+      riga.innerHTML =
+        '<div class="nome">' + v.nome + '<small>' + euro(v.prezzo) + ' cliente · costo ' + euro(v.costo) + '</small></div>' +
+        '<input type="number" inputmode="numeric" min="0" step="1" placeholder="0" data-id="' + v.id + '">' +
+        '<div class="guadagno" data-guadagno="' + v.id + '"><b>0,00 €</b>0,00 € guad.</div>';
+      sec.appendChild(riga);
+    });
+
+    contCategorie.appendChild(sec);
+  });
+
+  // ---------- Calcolo ----------
+  function calcolaTotali() {
+    var totIncasso = 0;
+    var totGuadagno = 0;
+
+    TUTTE_VARIANTI.forEach(function (v) {
+      var input = document.querySelector('input[data-id="' + v.id + '"]');
+      var q = parseFloat(input.value) || 0;
+      var incasso = q * v.prezzo;
+      var guadagno = q * (v.prezzo - v.costo);
+      totIncasso += incasso;
+      totGuadagno += guadagno;
+
+      var box = document.querySelector('[data-guadagno="' + v.id + '"]');
+      if (q > 0) {
+        box.innerHTML = '<b>' + euro(incasso) + '</b>' + euro(guadagno) + ' guad.';
+      } else {
+        box.innerHTML = '<b>0,00 €</b>0,00 € guad.';
+      }
+    });
+
+    var totaleRichiesto = parseFloat(document.getElementById('totaleRichiesto').value) || 0;
+    var differenza = totaleRichiesto - totIncasso;
+
+    document.getElementById('totaleProdottiMostrato').textContent = euro(totIncasso);
+    document.getElementById('differenzaMostrata').textContent = euro(differenza);
+    document.getElementById('totIncasso').textContent = euro(totIncasso);
+    document.getElementById('totGuadagno').textContent = euro(totGuadagno);
+
+    return { totIncasso: totIncasso, totGuadagno: totGuadagno, totaleRichiesto: totaleRichiesto, differenza: differenza };
+  }
+
+  contCategorie.addEventListener('input', calcolaTotali);
+  document.getElementById('totaleRichiesto').addEventListener('input', calcolaTotali);
+
+  // ---------- Salvataggio giornata (localStorage) ----------
+  function chiaveGiorno() { return 'visite_' + oggiChiave(); }
+
+  function caricaVisite() {
+    try {
+      return JSON.parse(localStorage.getItem(chiaveGiorno()) || '[]');
+    } catch (e) { return []; }
+  }
+  function salvaVisiteArray(arr) {
+    localStorage.setItem(chiaveGiorno(), JSON.stringify(arr));
+  }
+
+  function disegnaListaVisite() {
+    var visite = caricaVisite();
+    var cont = document.getElementById('listaVisite');
+    cont.innerHTML = '';
+
+    if (visite.length === 0) {
+      cont.innerHTML = '<div class="vuoto-giorno">Nessuna visita salvata oggi</div>';
+      return;
+    }
+
+    visite.slice().reverse().forEach(function (v) {
+      var riga = document.createElement('div');
+      riga.className = 'visita-salvata';
+      var nome = v.cliente ? v.cliente : '(cliente senza nome)';
+      riga.innerHTML =
+        '<div class="info"><span class="nome">' + nome + '</span><br>' +
+        '<span class="ora">' + v.ora + ' · incasso ' + euro(v.totIncasso) + '</span></div>' +
+        '<div class="guadagno-tot">' + euro(v.totGuadagno) + '</div>' +
+        '<button class="elimina" data-elimina="' + v.id + '">✕</button>';
+      cont.appendChild(riga);
+    });
+
+    cont.querySelectorAll('[data-elimina]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var id = btn.getAttribute('data-elimina');
+        var nuove = caricaVisite().filter(function (v) { return v.id !== id; });
+        salvaVisiteArray(nuove);
+        disegnaListaVisite();
+      });
+    });
+  }
+
+  document.getElementById('btnSalva').addEventListener('click', function () {
+    var totali = calcolaTotali();
+    var visite = caricaVisite();
+    visite.push({
+      id: Date.now().toString(36),
+      ora: new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }),
+      cliente: document.getElementById('nomeCliente').value.trim(),
+      totIncasso: totali.totIncasso,
+      totGuadagno: totali.totGuadagno,
+      totaleRichiesto: totali.totaleRichiesto,
+      differenza: totali.differenza
+    });
+    salvaVisiteArray(visite);
+    disegnaListaVisite();
+
+    // reset modulo per la prossima visita
+    document.getElementById('nomeCliente').value = '';
+    document.getElementById('totaleRichiesto').value = '';
+    document.querySelectorAll('#categorie input[type="number"]').forEach(function (i) { i.value = ''; });
+    calcolaTotali();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  });
+
+  document.getElementById('btnCancellaTutto').addEventListener('click', function () {
+    if (confirm('Cancellare tutte le visite salvate oggi?')) {
+      salvaVisiteArray([]);
+      disegnaListaVisite();
+    }
+  });
+
+  // ---------- Avvio ----------
+  document.getElementById('dataOggi').textContent = dataLeggibile();
+  calcolaTotali();
+  disegnaListaVisite();
+
+})();
+</script>
+
+</body>
+</html>

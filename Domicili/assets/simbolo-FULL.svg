@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200" role="img" aria-label="Ambulatorio Medico Veterinario Di Tizio — croce e caduceo">
+  <title>Simbolo ufficiale — versione FULL</title>
+  <style>
+    .c-cross { fill: #004A7C; }
+    .c-cad   { fill: #FFFFFF; stroke: #004A7C; stroke-linejoin: round; }
+    .c-eye   { fill: #004A7C; }
+    .feather { fill: none; stroke: #004A7C; stroke-linecap: round; }
+    .tongue  { fill: none; stroke: #004A7C; stroke-linecap: round; }
+  </style>
+
+  <defs>
+    <g id="wingF">
+      <path class="c-cad" style="stroke-width:1.3" d="M100,71 C120,61 140,61 153,71 C143,79 122,83 104,81 Z"/>
+      <path class="feather" style="stroke-width:2" d="M108,75 C120,71 132,70 147,71"/>
+      <path class="feather" style="stroke-width:2" d="M108,78 C119,75 130,75 141,77"/>
+    </g>
+    <g id="snakeF">
+      <path style="fill:none;stroke:#004A7C;stroke-width:12;stroke-linecap:round;stroke-linejoin:round"
+            d="M100,168 C86,166 76,160 76,148 C76,140 88,136 100,130 C86,126 76,120 76,110 C76,102 88,98 100,92 C94,88 88,86 84,82"/>
+      <path style="fill:none;stroke:#FFFFFF;stroke-width:8.5;stroke-linecap:round;stroke-linejoin:round"
+            d="M100,168 C86,166 76,160 76,148 C76,140 88,136 100,130 C86,126 76,120 76,110 C76,102 88,98 100,92 C94,88 88,86 84,82"/>
+      <ellipse class="c-cad" style="stroke-width:1.3" rx="6.4" ry="9" transform="translate(83 80) rotate(-38)"/>
+      <circle class="c-eye" cx="85" cy="77" r="2"/>
+      <path class="tongue" style="stroke-width:2" d="M79,74 L75,68 M79,74 L72,71"/>
+    </g>
+  </defs>
+
+  <rect class="c-cross" x="72" y="28" width="56" height="144" rx="8"/>
+  <rect class="c-cross" x="28" y="72" width="144" height="56" rx="8"/>
+
+  <use href="#wingF"/>
+  <use href="#wingF" transform="translate(200,0) scale(-1,1)"/>
+
+  <rect class="c-cad" style="stroke-width:1.3" x="96" y="44" width="8" height="130" rx="4"/>
+  <circle class="c-cad" style="stroke-width:1.3" cx="100" cy="40" r="7"/>
+
+  <use href="#snakeF"/>
+  <use href="#snakeF" transform="translate(200,0) scale(-1,1)"/>
+</svg>
